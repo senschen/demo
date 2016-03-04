@@ -1,0 +1,227 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>Sens心电图网页版 - DEMO</title>
+    <link rel="stylesheet" href="css/index.css">
+</head>
+<!--
+* Created by SensChen on 2014/12/29.
+* sens1992@qq.com
+* 空闲时间练手用DEMO，BUG和不足较多，请等待更新
+* 后期主要针对异步及性能问题进行优化
+* 顺便求问大神为什么浏览器卡顿时浏览器计时器反而会提前到达时间节点？
+-->
+<body>
+<div class="filter"></div>
+<div class="grid">
+    <div class="login-block">
+        <label for="id">账号：<span style="font-size: 12px;color: #f00">（管理员测试账号1001密码1111)</span></label><input id="id" type="text" placeholder="请输入账号">
+        <label for="password">密码：</label><input id="password" type="password" placeholder="请输入密码">
+        <input type="submit" class="btn-login" value="登陆">
+        <p class="login-tip"></p>
+    </div>
+    <div class="view-box">
+        <div class="data-box" style="display: none">
+            <div class="data-user">
+                <img src="img/1001.gif" alt="头像" class="user-img">
+                <a href="#" target="_blank" class="user-name"></a>
+                <div class="desc-container">
+                    数据生成时间
+                    <span class="tip-ask">？
+                    </span>
+                    <div class="tip">
+                        <div class="tip-main">心跳的发生时间。数据中断代表数据未更新，此时重复播放前两秒数据</div>
+                        <div class="tip-arrow"></div>
+                    </div>
+                </div>
+                <p class="user-date"></p>
+                <div class="desc-container">
+                    网络数据延迟
+                    <span class="tip-ask">？
+                    </span>
+                    <div class="tip">
+                        <div class="tip-main">代表正在播放的数据生成时间与当前时间的差值，可视作心跳的回放延迟时间。</div>
+                        <div class="tip-arrow"></div>
+                    </div>
+                </div>
+                <p class="user-delay-network">0ms</p>
+                <div class="desc-container">
+                    本地读写延迟
+                    <span class="tip-ask">？
+                    </span>
+                    <div class="tip">
+                        <div class="tip-main">代表机器的读写数据的卡顿时间，与机器性能及浏览器性能有关。</div>
+                        <div class="tip-arrow"></div>
+                    </div>
+                </div>
+                <p class="user-delay-local">0ms</p>
+                <div class="desc-container">
+                    用户症状列表
+                    <span class="tip-ask">？
+                    </span>
+                    <div class="tip">
+                        <div class="tip-main">代表机器的读写数据的卡顿，一般发生在获取数据的时刻</div>
+                        <div class="tip-arrow"></div>
+                    </div>
+                </div>
+                <p class="user-desc">心电波形正常</p>
+            </div>
+            <div class="data-param">
+                <ul class="param-number-list">
+                    <li>300</li>
+                    <li>200</li>
+                    <li>100</li>
+                    <li>0</li>
+                    <li>-100</li>
+                    <li>-200</li>
+                    <li>-300</li>
+                </ul>
+                <ul class="param-line-list">
+                </ul>
+            </div>
+            <div class="data-main">
+                <div class="data-line">
+                    <hr><hr><hr><hr><hr><hr><hr><hr><hr><hr><hr><hr><hr><hr><hr><hr><hr><hr>
+                    <hr class="middle-line">
+                    <hr><hr><hr><hr><hr><hr><hr><hr><hr><hr><hr><hr><hr><hr><hr><hr><hr><hr>
+                </div>
+                <div class="data-canvas">
+                    <canvas id="cvs" width="1000" height="377"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="btn-box">
+            <div class="btn btn-power">ON</div>
+            <div class="btn btn-start static">Go</div>
+        </div>
+    </div>
+</div>
+</body>
+<script src="js/jquery-1.8.3.min.js"></script>
+<script src="js/jquery.easing.1.3.js"></script>
+<script src="js/sens.js"></script>
+<script>
+
+    //执行阶段
+    $(function(){
+        var $loginBlock = $('.login-block');
+        var $loginTip = $('.login-tip');
+        var notLogin = true;
+        var url = '';
+        $.when($loginBlock.animate({'top':'100'},{duration:1000,easing:'easeOutBounce'})).done(function(){
+
+        });
+        $('.btn-login').click(function () {
+
+            var id = $('#id').val();
+            var password = $('#password').val();
+            if (id.length * password.length > 0) {
+                url = 'file/data'+id+'.json';
+                if(Sens.readFile(url)[4]==password) {
+                    $loginTip.text('登陆成功~');
+                    $.when($loginBlock.animate({'top': '-400'}, {
+                        duration: 1000,
+                        easing: 'easeInElastic'
+                    })).done(function () {
+                        $('.filter').fadeOut(500);
+                        notLogin = false;
+                    });
+                }
+                else{
+                    $loginBlock.addClass('rotate');
+                    $.when(setTimeout(function(){
+                        $loginBlock.removeClass('rotate');
+                    },500)).done(function(){
+                        $loginTip.text('请输入正确的账号密码');
+                    });
+                }
+            }
+            else {
+                $loginBlock.addClass('rotate');
+                $.when(setTimeout(function(){
+                    $loginBlock.removeClass('rotate');
+                },500)).done(function(){
+                    $loginTip.text('请输入正确的账号密码');
+                });
+            }
+        });
+
+
+        //数据提示框
+        $('.tip-ask').hover(function(){
+            $(this).siblings('.tip').fadeIn(200);
+        },function(){
+            $(this).siblings('.tip').hide();
+        });
+
+        var b_version=navigator.appVersion;
+        //ie9以下无法进行html5绘图
+        if(b_version.indexOf("MSIE 8.0")>0||b_version.indexOf("MSIE 7.0")>0||b_version.indexOf("MSIE 6.0")>0) {
+            alert('您当前的浏览器版本过于老旧，本程序将无法开机运行！建议您使用IE9版本以上的IE浏览器或使用猎豹、360极速、搜狗等chrome内核浏览器');
+            $('.btn-power').click(function () {
+                alert('开机失败，请升级您的浏览器！');
+            });
+        }
+        else {
+            //绘制坐标参数
+            var linePrecision = 10;
+            var num = $('.data-param').height() / linePrecision;
+            for (var i = 1; i < num; i++) {
+                $('.param-line-list').append('<li></li>');
+            }
+
+            var cvs = document.getElementById('cvs');
+            var ctx = cvs.getContext("2d");
+            ctx.lineWidth = 0.5;
+            var state = true;
+            //开关
+            var screen = $('.data-box');
+            $('.btn-power').click(function () {
+                if (screen.css('display') == 'none') {
+                    Sens.box.css('left', 0);
+                    Sens.power = true;
+                    var data = Sens.readFile(url);//第一次读数据
+                    ctx.moveTo(0, 190);
+                    ctx.lineTo(500, 190);
+                    ctx.stroke();
+                    var len = data.length;
+                    if (len > 0) {
+                        var name = data[1];
+                        var date = data[2].split(' ')[0];
+                        var time = data[2].split(' ')[1];
+                        $(this).text('OFF');
+                        $('.user-name').text(name);
+                        $('.user-date').html(date + '<br/>' + time);
+                        screen.fadeIn(1000);
+                        $('.btn-start').removeClass('static');
+                        Sens.drawInit('cvs');
+                    }
+                }
+                else {
+                    Sens.power = false;
+                    Sens.start = false;
+                    state = true;
+                    Sens.clearCanvas(cvs, ctx);
+                    $(this).text('ON');
+                    $('.btn-start').addClass('static');
+                    screen.fadeOut(2000);
+                }
+            });
+
+            //播放
+            $('.btn-start').bind('click', function () {
+                if (Sens.power == true && state) {
+                    Sens.start = true;  //播放状态
+                    state = false; //防止连续点击
+                    $(this).addClass('static');
+                    Sens.clearCanvas(cvs, ctx);
+                    Sens.drawSeq(cvs, ctx, url);
+                }
+            });
+        }
+    });
+
+</script>
+</html>
